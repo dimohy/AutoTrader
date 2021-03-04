@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<assembly xmlns="urn:schemas-microsoft-com:asm.v1" manifestVersion="1.0">
+
+  <assemblyIdentity version="1.0.0.1" processorArchitecture="x86" name="KHOpenAPI.ocx" type="win32">
+  </assemblyIdentity>
+  
+  <file name="KHOpenAPI.ocx">
+    <comClass clsid="{a1574a0d-6bfa-4bd7-9020-ded88711818d}" threadingModel="Apartment" tlbid="{6d8c2b4d-ef41-4750-8ad4-c299033833fb}" progid="KHOPENAPI.KHOpenAPICtrl.1" />
+    <typelib tlbid="{6d8c2b4d-ef41-4750-8ad4-c299033833fb}" version="1.2" helpdir="" resourceid="0" flags="CONTROL,HASDISKIMAGE" />
+  </file>
+  <comInterfaceExternalProxyStub name="_DKHOpenAPI" 
+                                 iid="{CF20FBB6-EDD4-4BE5-A473-FEF91977DEB6}" 
+                                 proxyStubClsid32="{00020424-0000-0000-C000-000000000046}" 
+                                 baseInterface="{00000000-0000-0000-C000-000000000046}" 
+                                 tlbid="{6d8c2b4d-ef41-4750-8ad4-c299033833fb}">
+  </comInterfaceExternalProxyStub>
+</assembly>

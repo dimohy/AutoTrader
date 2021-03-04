@@ -1,0 +1,37 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net5.0-windows</TargetFramework>
+    <Platforms>AnyCPU;x86</Platforms>
+    <NoWin32Manifest>true</NoWin32Manifest>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.WindowsDesktop.App" />
+  </ItemGroup>
+
+  <!--<ItemGroup>
+    <Content Include="Lib\**\*.*">
+      <Link>%(RecursiveDir)%(Filename)%(Extension)</Link>
+	  <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+	</Content>
+  </ItemGroup>-->
+
+  <ItemGroup>
+    <ProjectReference Include="..\AutoTrader.Core\AutoTrader.Core.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Reference Include="AxKHOpenAPILib">
+      <HintPath>Manifests\AxKHOpenAPILib.dll</HintPath>
+    </Reference>
+    <Reference Include="KHOpenAPILib">
+      <HintPath>Manifests\KHOpenAPILib.dll</HintPath>
+    </Reference>
+  </ItemGroup>
+	
+  <ItemGroup>
+    <None Update="AutoTrader.StockProvider.Kiwoom.dll.manifest">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+</Project>

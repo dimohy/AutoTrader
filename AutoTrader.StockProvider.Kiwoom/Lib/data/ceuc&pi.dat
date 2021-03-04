@@ -1,0 +1,69 @@
+{
+	"CommonProperty" : [ "Name", "Left", "Top", "Width", "Height", "Visible" ],
+	"HideControl" : [ "CNKInterfaceCtrl", "CNKDataSetCtrl", "CNKTimerCtrl" ],
+	"Control&Property" : [
+		{ 
+			"CNKGroupBoxCtrl" : [ "Text", "TextAlign" ] 
+		},
+		{ 
+			"CNKShortcutCtrl" : [ ] 
+		},
+		{ 
+			"CNKButtonCtrl" : [ ] 
+		},
+		{ 
+			"CNKStaticCtrl" : [ "Font", "BackColor" ] 
+		},
+		{ 
+			"CNKACComboCtrl" : [ ] 
+		},
+		{ 
+			"CNKCalendarCtrl" : [ ] 
+		},
+		{ 
+			"CNKComboCtrl" : [ "LinkHogaSpinCtrl" ] 
+		},
+		{ 
+			"CNKJMComboCtrl" : [ ] 
+		},
+		{ 
+			"CNKGridCtrl" : [ ] 
+		},
+		{ 
+			"CNKInterfaceCtrl" : [ ] 
+		},
+		{ 
+			"CNKTreeComboCtrl" : [ ] 
+		},
+		{ 
+			"CNKTabCtrl" : [ ] 
+		},
+		{ 
+			"CNKTreeCtrl" : [ ] 
+		},
+		{ 
+			"CNKEditCtrl" : [ "Dataset", "FID" ] 
+		},
+		{ 
+			"CNKMaskEditCtrl" : [ ] 
+		},
+		{ 
+			"CNKDataSetCtrl" : [ ] 
+		},
+		{ 
+			"CNKTimerCtrl" : [ ] 
+		},
+		{ 
+			"CNKRadioCtrl" : [ ] 
+		},
+		{ 
+			"CNKWebCtrl" : [ "Url" ] 
+		},
+		{ 
+			"CNKLineCtrl" : [ "LineType", "Thickness" ] 
+		},
+		{ 
+			"CNKCheckCtrl" : [ "Text", "CheckState", "PushLike" ] 
+		}
+	]
+}
