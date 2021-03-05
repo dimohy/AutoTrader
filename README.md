@@ -18,6 +18,6 @@
 - ※ 키움증권의 경우 1초에 5번, 30초에 몇번, 1시간에 몇번 API 호출에 대한 제한이 있습니다. 현재는 1초에 5번의 제한만 처리되어 있습니다.
 
 ## 이후 진행 계획
+1. 이베스트 xingAPI 기반 provider 구현
 1. AutoTrader 기준의 interface 일반화
 1. AutoTrader의 동작성을 확인하기 위한 간단한 매매프로그램 구현
-1. 이베스트 xingAPI 기반 provider 구현

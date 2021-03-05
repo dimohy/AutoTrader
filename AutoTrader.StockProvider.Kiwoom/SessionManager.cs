@@ -23,19 +23,17 @@ namespace AutoTrader.StockProvider.Kiwoom
 
         public SessionManager()
         {
-            ManualResetEvent waitEvent = new ManualResetEvent(false);
+            var initResetEvent = new ManualResetEvent(false);
 
             messageThread = new Thread(() =>
             {
                 var openApiForm = new OpenApiForm
                 {
-                    InitCompleteEvent = waitEvent
+                    InitCompleteEvent = initResetEvent
                 };
                 openApi = openApiForm;
 
                 Application.Run(openApiForm);
-
-                ;
             })
             {
                 IsBackground = true
@@ -43,7 +41,7 @@ namespace AutoTrader.StockProvider.Kiwoom
             messageThread.SetApartmentState(ApartmentState.STA);
             messageThread.Start();
 
-            waitEvent.WaitOne();
+            initResetEvent.WaitOne();
         }
 
         public bool 연결_유무()

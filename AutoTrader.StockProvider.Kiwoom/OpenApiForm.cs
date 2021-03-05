@@ -318,7 +318,7 @@ namespace AutoTrader.StockProvider.Kiwoom
             }
         }
 
-        private async Task<TResult> RequestData<TResult>(string trCode, Dictionary<string, string> inputParams)
+        private async Task<TResult> RequestData<TResult>(string trCode, params (string Key, string Value)[] @params)
             where TResult : class
         {
             TResult result = default;
@@ -335,7 +335,7 @@ namespace AutoTrader.StockProvider.Kiwoom
                 var reqName = GenerateReqName();
                 api.Invoke(new Action(() =>
                 {
-                    foreach (var kv in inputParams)
+                    foreach (var kv in @params)
                         api.SetInputValue(kv.Key, kv.Value);
 
                     nResult = api.CommRqData(reqName, trCode, 0, "101");
@@ -353,7 +353,7 @@ namespace AutoTrader.StockProvider.Kiwoom
             return result;
         }
 
-        private async Task<IReadOnlyList<TResult>> RequestMultiData<TResult>(string trCode, Dictionary<string, string> inputParams)
+        private async Task<IReadOnlyList<TResult>> RequestMultiData<TResult>(string trCode, params (string Key, string Value)[] @params)
         {
             List<TResult> result = new List<TResult>();
 
@@ -373,7 +373,7 @@ namespace AutoTrader.StockProvider.Kiwoom
 
                     api.Invoke(new Action(() =>
                     {
-                        foreach (var kv in inputParams)
+                        foreach (var kv in @params)
                             api.SetInputValue(kv.Key, kv.Value);
 
                         nResult = api.CommRqData(reqName, trCode, isContinuous == true ? 2 : 0, "101");
@@ -463,7 +463,6 @@ namespace AutoTrader.StockProvider.Kiwoom
             public bool IsContinuous { get; set; }
         }
 
-
         public bool 연결_유무()
         {
             var result = 0;
@@ -477,41 +476,36 @@ namespace AutoTrader.StockProvider.Kiwoom
         public Task<주식기본정보> 주식_기본정보_조회(string 종목코드)
         {
             return RequestData<주식기본정보>("opt10001",
-                new()
-                {
-                    ["종목코드"] = 종목코드
-                });
+                ("종목코드", 종목코드)
+            );
         }
 
         public Task<IReadOnlyList<주식일봉정보>> 주식_일봉정보_조회(string 종목코드, DateTime 기준일자)
         {
             return RequestMultiData<주식일봉정보>("opt10081",
-                new()
-                {
-                    ["종목코드"] = 종목코드,
-                    ["기준일자"] = 기준일자.ToCombineDate(),
-                    ["수정주가구분"] = "1"
-                });
+                ("종목코드", 종목코드),
+                ("기준일자", 기준일자.ToCombineDate()),
+                ("수정주가구분", "1")
+            );
         }
 
         public Task<IReadOnlyList<주식분봉정보>> 주식_분봉_조회(string 종목코드, 분봉구분 분봉구분)
         {
             return RequestMultiData<주식분봉정보>("opt10080",
-                new()
+                ("종목코드", 종목코드),
+                ("틱범위", 분봉구분 switch
                 {
-                    ["종목코드"] = 종목코드,
-                    ["틱범위"] = 분봉구분 switch
-                    {
-                        분봉구분.분봉_1분봉 => "1",
-                        분봉구분.분봉_5분봉 => "5",
-                        분봉구분.분봉_10분봉 => "10",
-                        분봉구분.분봉_15분봉 => "15",
-                        분봉구분.분봉_30분봉 => "30",
-                        분봉구분.분봉_45분봉 => "45",
-                        분봉구분.분봉_60분봉 => "60",
-                        _ => "30" },
-                    ["수정주가구분"] = "1"
-                });
+                    분봉구분.분봉_1분봉 => "1",
+                    분봉구분.분봉_5분봉 => "5",
+                    분봉구분.분봉_10분봉 => "10",
+                    분봉구분.분봉_15분봉 => "15",
+                    분봉구분.분봉_30분봉 => "30",
+                    분봉구분.분봉_45분봉 => "45",
+                    분봉구분.분봉_60분봉 => "60",
+                    _ => "30"
+                }),
+                ("수정주가구분", "1")
+            );
         }
 
         public Task<주식주문정보> 주식_주문(string 계좌번호, string 종목코드, 주문유형 주문유형, float 수량, float 가격, 거래구분 거래구분)

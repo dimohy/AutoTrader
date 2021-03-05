@@ -14,9 +14,9 @@
 		</application>
 	</compatibility>
 
-	<dependency>
+	<!--<dependency>
 		<dependentAssembly asmv2:dependencyType="install" asmv2:codebase="KHOpenAPI.ocx.manifest" asmv2:size="1058">
 			<assemblyIdentity name="KHOpenAPI.ocx" version="1.0.0.1" processorArchitecture="x86" type="win32" />
 		</dependentAssembly>
-	</dependency>
+	</dependency>-->
 </asmv1:assembly>
