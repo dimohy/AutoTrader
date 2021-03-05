@@ -13,6 +13,9 @@ namespace AutoTrader.Core.Extensions
             if (@this == null || @this.Length == 0)
                 return default;
 
+            if (typeof(TResult) == typeof(string))
+                return (TResult)(object)@this.Trim();
+
             @this = @this.Trim();
             var type = typeof(TResult);
 

@@ -25,8 +25,8 @@ namespace AutoTrader.StockProvider.Kiwoom
         private readonly ManualResetEventSlim waitConnectResetEvent = new(false);
         private Exception lastException;
         private 사용자정보 사용자정보;
-        private uint reqNum;
-        private readonly ConcurrentDictionary<string, (ManualResetEventSlim, RefValue<object>)> reqNameToResultMap = new();
+        private ushort reqNum;
+        private readonly ConcurrentDictionary<string, ReqResult> reqNameToResultMap = new();
         private Stopwatch stopwatch;
         private TimeSpan lastRequestTimeSpan;
         private TimeSpan lastOrderTimeSpan;
@@ -71,15 +71,20 @@ namespace AutoTrader.StockProvider.Kiwoom
             ShowInTaskbar = false;
 
             api = new AxKHOpenAPI();
+            // 연결시 호출
             api.OnEventConnect += Api_OnEventConnect;
+            // 메시지 수신시 호출
             api.OnReceiveMsg += Api_OnReceiveMsg;
-            api.OnReceiveRealCondition += Api_OnReceiveRealCondition;
-            api.OnReceiveInvestRealData += Api_OnReceiveInvestRealData;
+            //api.OnReceiveRealCondition += Api_OnReceiveRealCondition;
+            //api.OnReceiveInvestRealData += Api_OnReceiveInvestRealData;
+            // 체결/잔고변경 수신시 호출
             api.OnReceiveChejanData += Api_OnReceiveChejanData;
+            // 실시간 수신시 호출
             api.OnReceiveRealData += Api_OnReceiveRealData;
+            // TR 요청 수신시 호출
             api.OnReceiveTrData += Api_OnReceiveTrData;
-            api.OnReceiveTrCondition += Api_OnReceiveTrCondition;
-            api.OnReceiveConditionVer += Api_OnReceiveConditionVer;
+            //api.OnReceiveTrCondition += Api_OnReceiveTrCondition;
+            //api.OnReceiveConditionVer += Api_OnReceiveConditionVer;
 
             Controls.Add(api);
 
@@ -88,15 +93,15 @@ namespace AutoTrader.StockProvider.Kiwoom
             InitCompleteEvent.Set();
         }
 
-        private void Api_OnReceiveConditionVer(object sender, _DKHOpenAPIEvents_OnReceiveConditionVerEvent e)
-        {
-            Console.WriteLine($"Api_OnReceiveConditionVer: ");
-        }
+        //private void Api_OnReceiveConditionVer(object sender, _DKHOpenAPIEvents_OnReceiveConditionVerEvent e)
+        //{
+        //    Console.WriteLine($"Api_OnReceiveConditionVer: ");
+        //}
 
-        private void Api_OnReceiveTrCondition(object sender, _DKHOpenAPIEvents_OnReceiveTrConditionEvent e)
-        {
-            Console.WriteLine($"Api_OnReceiveTrCondition: ");
-        }
+        //private void Api_OnReceiveTrCondition(object sender, _DKHOpenAPIEvents_OnReceiveTrConditionEvent e)
+        //{
+        //    Console.WriteLine($"Api_OnReceiveTrCondition: ");
+        //}
 
         private void Api_OnReceiveTrData(object sender, _DKHOpenAPIEvents_OnReceiveTrDataEvent e)
         {
@@ -113,54 +118,57 @@ namespace AutoTrader.StockProvider.Kiwoom
             ///////////////////////
             if (e.sTrCode == "opt10001")
             {
-                result.Item2.Value = new 주식기본정보
+                result.Value = new 주식기본정보
                 {
-                    종목코드 = api.GetCommData(e.sTrCode, e.sRQName, 0, "종목코드").Trim(),
-                    종목명 = api.GetCommData(e.sTrCode, e.sRQName, 0, "종목명").Trim(),
-                    결산월 = api.GetCommData(e.sTrCode, e.sRQName, 0, "결산월").CastTo<int>(),
-                    액면가 = api.GetCommData(e.sTrCode, e.sRQName, 0, "액면가").CastTo<float>(),
-                    자본금 = api.GetCommData(e.sTrCode, e.sRQName, 0, "자본금").CastTo<decimal>(),
-                    상장주식 = api.GetCommData(e.sTrCode, e.sRQName, 0, "상장주식").CastTo<int>(),
-                    신용비율 = api.GetCommData(e.sTrCode, e.sRQName, 0, "신용비율").CastTo<float>(),
-                    연중최고 = api.GetCommData(e.sTrCode, e.sRQName, 0, "연중최고").CastTo<float>(),
-                    연중최저 = api.GetCommData(e.sTrCode, e.sRQName, 0, "연중최저").CastTo<float>(),
-                    시가총액 = api.GetCommData(e.sTrCode, e.sRQName, 0, "시가총액").CastTo<decimal>(),
-                    외인소진률 = api.GetCommData(e.sTrCode, e.sRQName, 0, "외인소진률").CastTo<float>(),
-                    대용가 = api.GetCommData(e.sTrCode, e.sRQName, 0, "대용가").CastTo<decimal>(),
-                    PER = api.GetCommData(e.sTrCode, e.sRQName, 0, "PER").CastTo<float>(),
-                    EPS = api.GetCommData(e.sTrCode, e.sRQName, 0, "EPS").CastTo<decimal>(),
-                    ROE = api.GetCommData(e.sTrCode, e.sRQName, 0, "ROE").CastTo<float>(),
-                    PBR = api.GetCommData(e.sTrCode, e.sRQName, 0, "PBR").CastTo<float>(),
-                    EV = api.GetCommData(e.sTrCode, e.sRQName, 0, "EV").CastTo<float>(),
-                    BPS = api.GetCommData(e.sTrCode, e.sRQName, 0, "BPS").CastTo<decimal>(),
-                    매출액 = api.GetCommData(e.sTrCode, e.sRQName, 0, "매출액").CastTo<decimal>(),
-                    영업이익 = api.GetCommData(e.sTrCode, e.sRQName, 0, "영업이익").CastTo<decimal>(),
-                    당기순이익 = api.GetCommData(e.sTrCode, e.sRQName, 0, "당기순이익").CastTo<decimal>(),
-                    N250최고 = api.GetCommData(e.sTrCode, e.sRQName, 0, "250최고").CastTo<float>(),
-                    N250최저 = api.GetCommData(e.sTrCode, e.sRQName, 0, "250최저").CastTo<float>(),
-                    시가 = api.GetCommData(e.sTrCode, e.sRQName, 0, "시가").CastTo<float>(),
-                    고가 = api.GetCommData(e.sTrCode, e.sRQName, 0, "고가").CastTo<float>(),
-                    저가 = api.GetCommData(e.sTrCode, e.sRQName, 0, "저가").CastTo<float>(),
-                    상한가 = api.GetCommData(e.sTrCode, e.sRQName, 0, "상한가").CastTo<float>(),
-                    하한가 = api.GetCommData(e.sTrCode, e.sRQName, 0, "하한가").CastTo<float>(),
-                    기준가 = api.GetCommData(e.sTrCode, e.sRQName, 0, "기준가").CastTo<float>(),
-                    예상체결가 = api.GetCommData(e.sTrCode, e.sRQName, 0, "예상체결가").CastTo<float>(),
-                    예상체결수량 = api.GetCommData(e.sTrCode, e.sRQName, 0, "예상체결수량").CastTo<int>(),
-                    N250최고가일 = api.GetCommData(e.sTrCode, e.sRQName, 0, "250최고가일").CastTo<DateTime>(),
-                    N250최고가대비율 = api.GetCommData(e.sTrCode, e.sRQName, 0, "250최고가대비율").CastTo<float>(),
-                    N250최저가일 = api.GetCommData(e.sTrCode, e.sRQName, 0, "250최저가일").CastTo<DateTime>(),
-                    N250최저가대비율 = api.GetCommData(e.sTrCode, e.sRQName, 0, "250최저가대비율").CastTo<float>(),
-                    현재가 = api.GetCommData(e.sTrCode, e.sRQName, 0, "현재가").CastTo<float>(),
-                    대비기호 = api.GetCommData(e.sTrCode, e.sRQName, 0, "대비기호").CastTo<int>(),
-                    전일대비 = api.GetCommData(e.sTrCode, e.sRQName, 0, "전일대비").CastTo<float>(),
-                    등락율 = api.GetCommData(e.sTrCode, e.sRQName, 0, "등락율").CastTo<float>(),
-                    거래량 = api.GetCommData(e.sTrCode, e.sRQName, 0, "거래량").CastTo<int>(),
-                    거래대비 = api.GetCommData(e.sTrCode, e.sRQName, 0, "거래대비").CastTo<float>(),
-                    액면가단위 = api.GetCommData(e.sTrCode, e.sRQName, 0, "액면가단위").Trim(),
-                    유통주식 = api.GetCommData(e.sTrCode, e.sRQName, 0, "유통주식").CastTo<int>(),
-                    유통비율 = api.GetCommData(e.sTrCode, e.sRQName, 0, "유통비율").CastTo<float>()
+                    종목코드 = Get<string>(0, "종목코드"),
+                    종목명 = Get<string>(0, "종목명"),
+                    결산월 = Get<int>(0, "결산월"),
+                    액면가 = Get<float>(0, "액면가"),
+                    자본금 = Get<decimal>(0, "자본금"),
+                    상장주식 = Get<int>(0, "상장주식"),
+                    신용비율 = Get<float>(0, "신용비율"),
+                    연중최고 = Get<float>(0, "연중최고"),
+                    연중최저 = Get<float>(0, "연중최저"),
+                    시가총액 = Get<decimal>(0, "시가총액"),
+                    외인소진률 = Get<float>(0, "외인소진률"),
+                    대용가 = Get<decimal>(0, "대용가"),
+                    PER = Get<float>(0, "PER"),
+                    EPS = Get<decimal>(0, "EPS"),
+                    ROE = Get<float>(0, "ROE"),
+                    PBR = Get<float>(0, "PBR"),
+                    EV = Get<float>(0, "EV"),
+                    BPS = Get<decimal>(0, "BPS"),
+                    매출액 = Get<decimal>(0, "매출액"),
+                    영업이익 = Get<decimal>(0, "영업이익"),
+                    당기순이익 = Get<decimal>(0, "당기순이익"),
+                    N250최고 = Get<float>(0, "250최고"),
+                    N250최저 = Get<float>(0, "250최저"),
+                    시가 = Get<float>(0, "시가"),
+                    고가 = Get<float>(0, "고가"),
+                    저가 = Get<float>(0, "저가"),
+                    상한가 = Get<float>(0, "상한가"),
+                    하한가 = Get<float>(0, "하한가"),
+                    기준가 = Get<float>(0, "기준가"),
+                    예상체결가 = Get<float>(0, "예상체결가"),
+                    예상체결수량 = Get<int>(0, "예상체결수량"),
+                    N250최고가일 = Get<DateTime>(0, "250최고가일"),
+                    N250최고가대비율 = Get<float>(0, "250최고가대비율"),
+                    N250최저가일 = Get<DateTime>(0, "250최저가일"),
+                    N250최저가대비율 = Get<float>(0, "250최저가대비율"),
+                    현재가 = Get<float>(0, "현재가"),
+                    대비기호 = Get<int>(0, "대비기호"),
+                    전일대비 = Get<float>(0, "전일대비"),
+                    등락율 = Get<float>(0, "등락율"),
+                    거래량 = Get<int>(0, "거래량"),
+                    거래대비 = Get<float>(0, "거래대비"),
+                    액면가단위 = Get<string>(0, "액면가단위"),
+                    유통주식 = Get<int>(0, "유통주식"),
+                    유통비율 = Get<float>(0, "유통비율")
                 };
             }
+            ///////////////////////
+            // 주식일봉정보 조회 //
+            ///////////////////////
             else if (e.sTrCode == "opt10081")
             {
                 var items = new List<주식일봉정보>();
@@ -169,25 +177,27 @@ namespace AutoTrader.StockProvider.Kiwoom
                 for (var i = 0; i < count; i++)
                 {
                     if (i == 0)
-                        종목코드 = api.GetCommData(e.sTrCode, e.sRQName, 0, "종목코드").Trim();
+                        종목코드 = Get<string>(0, "종목코드");
 
                     var item = new 주식일봉정보
                     {
                         종목코드 = 종목코드,
-                        현재가 = api.GetCommData(e.sTrCode, e.sRQName, i, "현재가").CastTo<float>(),
-                        거래량 = api.GetCommData(e.sTrCode, e.sRQName, i, "거래량").CastTo<int>(),
-                        거래대금 = api.GetCommData(e.sTrCode, e.sRQName, i, "거래대금").CastTo<decimal>(),
-                        일자 = api.GetCommData(e.sTrCode, e.sRQName, i, "일자").CastTo<DateTime>(),
-                        시가 = api.GetCommData(e.sTrCode, e.sRQName, i, "시가").CastTo<float>(),
-                        고가 = api.GetCommData(e.sTrCode, e.sRQName, i, "고가").CastTo<float>(),
-                        저가 = api.GetCommData(e.sTrCode, e.sRQName, i, "저가").CastTo<float>()
+                        현재가 = Get<float>(i, "현재가"),
+                        거래량 = Get<int>(i, "거래량"),
+                        거래대금 = Get<decimal>(i, "거래대금"),
+                        일자 = Get<DateTime>(i, "일자"),
+                        시가 = Get<float>(i, "시가"),
+                        고가 = Get<float>(i, "고가"),
+                        저가 = Get<float>(i, "저가")
                     };
                     items.Add(item);
                 }
-                Console.WriteLine(items.First());
-                result.Item2.Value = items;
-                result.Item2.IsContinuous = e.sPrevNext == "2";
+                result.Value = items;
+                result.IsContinuous = e.sPrevNext == "2";
             }
+            ///////////////////////
+            // 주식분봉정보 조회 //
+            ///////////////////////
             else if (e.sTrCode == "opt10080")
             {
                 var items = new List<주식분봉정보>();
@@ -196,38 +206,49 @@ namespace AutoTrader.StockProvider.Kiwoom
                 for (var i = 0; i < count; i++)
                 {
                     if (i == 0)
-                        종목코드 = api.GetCommData(e.sTrCode, e.sRQName, 0, "종목코드").Trim();
+                        종목코드 = Get<string>(0, "종목코드");
 
                     var item = new 주식분봉정보
                     {
                         종목코드 = 종목코드,
-                        현재가 = api.GetCommData(e.sTrCode, e.sRQName, i, "현재가").CastTo<float>().Abs(),
-                        거래량 = api.GetCommData(e.sTrCode, e.sRQName, i, "거래량").CastTo<int>(),
-                        체결시간 = api.GetCommData(e.sTrCode, e.sRQName, i, "체결시간").CastTo<DateTime>(),
-                        시가 = api.GetCommData(e.sTrCode, e.sRQName, i, "시가").CastTo<float>().Abs(),
-                        고가 = api.GetCommData(e.sTrCode, e.sRQName, i, "고가").CastTo<float>().Abs(),
-                        저가 = api.GetCommData(e.sTrCode, e.sRQName, i, "저가").CastTo<float>().Abs()
+                        현재가 = Get<float>(i, "현재가").Abs(),
+                        거래량 = Get<int>(i, "거래량"),
+                        체결시간 = Get<DateTime>(i, "체결시간"),
+                        시가 = Get<float>(i, "시가").Abs(),
+                        고가 = Get<float>(i, "고가").Abs(),
+                        저가 = Get<float>(i, "저가").Abs()
                     };
                     items.Add(item);
                 }
-                result.Item2.Value = items;
-                result.Item2.IsContinuous = e.sPrevNext == "2";
+                result.Value = items;
+                result.IsContinuous = e.sPrevNext == "2";
+            }
+            /////////////////////////
+            // 주식 매수/매도 주문 //
+            /////////////////////////
+            else if (e.sTrCode == "KOA_NORMAL_BUY_KP_ORD" || e.sTrCode == "KOA_NORMAL_SELL_KP_ORD")
+            {
+                var orderNo = Get<int>(0, "주문번호");
+                result.Value = orderNo;
             }
 
-            result.Item1.Set();
-
-
+            result.ResponseResetEvent.Set();
+            
+            ////
+            TResult Get<TResult>(int index, string itemName) => api.GetCommData(e.sTrCode, e.sRQName, index, itemName).CastTo<TResult>();
         }
 
         private StockProviderException GetException(int errorCode)
         {
-            return errorCode switch
+            var kind = errorCode switch
             {
-                -200 => new StockProviderException(StockProviderExceptionKind.조회오류_과부하, errorCode),
-                -202 => new StockProviderException(StockProviderExceptionKind.조회오류_인자오류, errorCode),
-                -300 => new StockProviderException(StockProviderExceptionKind.조회오류_인자오류, errorCode),
-                _ => new StockProviderException(StockProviderExceptionKind.미정의오류, errorCode)
+                -200 => StockProviderExceptionKind.조회오류_과부하,
+                -202 or -300 => StockProviderExceptionKind.조회오류_인자오류,
+                -301 => StockProviderExceptionKind.주문오류_비밀번호불일치,
+                _ => StockProviderExceptionKind.미정의오류
             };
+
+            return new StockProviderException(kind, errorCode);
         }
 
         private void Api_OnReceiveRealData(object sender, _DKHOpenAPIEvents_OnReceiveRealDataEvent e)
@@ -237,18 +258,29 @@ namespace AutoTrader.StockProvider.Kiwoom
 
         private void Api_OnReceiveChejanData(object sender, _DKHOpenAPIEvents_OnReceiveChejanDataEvent e)
         {
-            Console.WriteLine($"Api_OnReceiveChejanData: ");
+            Console.WriteLine($"Api_OnReceiveChejanData: {e.sGubun}, {e.nItemCnt}, {e.sFIdList}");
+
+            if (e.nItemCnt == 0)
+                return;
+
+            var fids = e.sFIdList.Split(';');
+            foreach (var sFid in fids)
+            {
+                var fid = int.Parse(sFid);
+                var fidResult = api.GetChejanData(fid);
+                Console.WriteLine($"{fid}: {fidResult}");
+            }
         }
 
-        private void Api_OnReceiveInvestRealData(object sender, _DKHOpenAPIEvents_OnReceiveInvestRealDataEvent e)
-        {
-            Console.WriteLine($"Api_OnReceiveInvestRealData: ");
-        }
+        //private void Api_OnReceiveInvestRealData(object sender, _DKHOpenAPIEvents_OnReceiveInvestRealDataEvent e)
+        //{
+        //    Console.WriteLine($"Api_OnReceiveInvestRealData: ");
+        //}
 
-        private void Api_OnReceiveRealCondition(object sender, _DKHOpenAPIEvents_OnReceiveRealConditionEvent e)
-        {
-            Console.WriteLine($"Api_OnReceiveRealCondition: ");
-        }
+        //private void Api_OnReceiveRealCondition(object sender, _DKHOpenAPIEvents_OnReceiveRealConditionEvent e)
+        //{
+        //    Console.WriteLine($"Api_OnReceiveRealCondition: ");
+        //}
 
         //// 스레드가 종료될 경우 호출되지 않는다.
         //protected override void OnFormClosed(FormClosedEventArgs e)
@@ -278,7 +310,7 @@ namespace AutoTrader.StockProvider.Kiwoom
 
         private void Api_OnEventConnect(object sender, _DKHOpenAPIEvents_OnEventConnectEvent e)
         {
-            Console.WriteLine($"Api_OnEventConnect: {e.nErrCode}");
+            //Console.WriteLine($"Api_OnEventConnect: {e.nErrCode}");
 
             try
             {
@@ -390,7 +422,7 @@ namespace AutoTrader.StockProvider.Kiwoom
                     if (isContinuous == false)
                         break;
 
-                    GetReqResult(reqName).Item1.Reset();
+                    GetReqResult(reqName)?.ResponseResetEvent.Reset();
                 }
 
                 RemoveReqResult(reqName);
@@ -419,7 +451,7 @@ namespace AutoTrader.StockProvider.Kiwoom
                     var nQuantity = (int)quantity;
                     var nPrice = (int)price;
                     // "03"은 시장가, "01"은 지정가. 주문가격이 0일 경우 시장가로 거래한다.
-                    var nResult = api.SendOrder(reqName, "101", accountNo, orderType, itemCode, nQuantity, nPrice, nPrice == 0 ? "03" : "00", orignOrderNo);
+                    nResult = api.SendOrder(reqName, "101", accountNo, orderType, itemCode, nQuantity, nPrice, nPrice == 0 ? "03" : "00", orignOrderNo);
                 }));
                 if (nResult < 0)
                     throw GetException(nResult);
@@ -437,13 +469,13 @@ namespace AutoTrader.StockProvider.Kiwoom
         private (TResult, bool) WaitForReqResult<TResult>(string reqName)
             where TResult : class
         {
-            (ManualResetEventSlim, RefValue<object>) result = (new(false), new());
+            var result = new ReqResult();
             reqNameToResultMap[reqName] = result;
-            result.Item1.Wait();
-            return (result.Item2.Value as TResult, result.Item2.IsContinuous);
+            result.ResponseResetEvent.Wait();
+            return (result.Value as TResult, result.IsContinuous);
         }
 
-        private (ManualResetEventSlim, RefValue<object>) GetReqResult(string reqName)
+        private ReqResult GetReqResult(string reqName)
         {
             var bResult = reqNameToResultMap.TryGetValue(reqName, out var result);
             if (bResult == false)
@@ -457,10 +489,11 @@ namespace AutoTrader.StockProvider.Kiwoom
             reqNameToResultMap.TryRemove(reqName, out _);
         }
 
-        private class RefValue<T>
+        private class ReqResult
         {
-            public T Value { get; set; }
+            public object Value { get; set; }
             public bool IsContinuous { get; set; }
+            public ManualResetEventSlim ResponseResetEvent { get; } = new ManualResetEventSlim(false);
         }
 
         public bool 연결_유무()
