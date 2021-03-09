@@ -224,11 +224,11 @@ namespace AutoTrader.StockProvider.Kiwoom
                 result.IsContinuous = e.sPrevNext == "2";
             }
             /////////////////////////
-            // 주식 매수/매도 주문 //
+            // 주식 매수/매도/취소 주문 //
             /////////////////////////
-            else if (e.sTrCode == "KOA_NORMAL_BUY_KP_ORD" || e.sTrCode == "KOA_NORMAL_SELL_KP_ORD")
+            else if (e.sTrCode == "KOA_NORMAL_BUY_KP_ORD" || e.sTrCode == "KOA_NORMAL_SELL_KP_ORD" || e.sTrCode == "KOA_NORMAL_KP_CANCEL")
             {
-                var orderNo = Get<int>(0, "주문번호");
+                var orderNo = Get<string>(0, "주문번호");
                 result.Value = orderNo;
             }
 
@@ -258,18 +258,18 @@ namespace AutoTrader.StockProvider.Kiwoom
 
         private void Api_OnReceiveChejanData(object sender, _DKHOpenAPIEvents_OnReceiveChejanDataEvent e)
         {
-            Console.WriteLine($"Api_OnReceiveChejanData: {e.sGubun}, {e.nItemCnt}, {e.sFIdList}");
+            //Console.WriteLine($"Api_OnReceiveChejanData: {e.sGubun}, {e.nItemCnt}, {e.sFIdList}");
 
-            if (e.nItemCnt == 0)
-                return;
+            //if (e.nItemCnt == 0)
+            //    return;
 
-            var fids = e.sFIdList.Split(';');
-            foreach (var sFid in fids)
-            {
-                var fid = int.Parse(sFid);
-                var fidResult = api.GetChejanData(fid);
-                Console.WriteLine($"{fid}: {fidResult}");
-            }
+            //var fids = e.sFIdList.Split(';');
+            //foreach (var sFid in fids)
+            //{
+            //    var fid = int.Parse(sFid);
+            //    var fidResult = api.GetChejanData(fid);
+            //    Console.WriteLine($"{fid}: {fidResult}");
+            //}
         }
 
         //private void Api_OnReceiveInvestRealData(object sender, _DKHOpenAPIEvents_OnReceiveInvestRealDataEvent e)
@@ -306,6 +306,12 @@ namespace AutoTrader.StockProvider.Kiwoom
         private void Api_OnReceiveMsg(object sender, _DKHOpenAPIEvents_OnReceiveMsgEvent e)
         {
             Console.WriteLine($"Api_OnReceiveMsg: {e.sScrNo}, {e.sRQName}, {e.sTrCode}, {e.sMsg}");
+
+            var result = GetReqResult(e.sRQName);
+            if (result == default)
+                return;
+
+            result.Message = e.sMsg;
         }
 
         private void Api_OnEventConnect(object sender, _DKHOpenAPIEvents_OnEventConnectEvent e)
@@ -375,7 +381,7 @@ namespace AutoTrader.StockProvider.Kiwoom
                 if (nResult < 0)
                     throw GetException(nResult);
 
-                (result, _) = WaitForReqResult<TResult>(reqName);
+                (result, _, _) = WaitForReqResult<TResult>(reqName);
 
                 RemoveReqResult(reqName);
 
@@ -414,7 +420,7 @@ namespace AutoTrader.StockProvider.Kiwoom
                         throw GetException(nResult);
 
                     List<TResult> block;
-                    (block, isContinuous) = WaitForReqResult<List<TResult>>(reqName);
+                    (block, isContinuous, _) = WaitForReqResult<List<TResult>>(reqName);
                     result.AddRange(block);
 
                     lastRequestTimeSpan = stopwatch.Elapsed;
@@ -432,7 +438,7 @@ namespace AutoTrader.StockProvider.Kiwoom
         }
 
         // string 계좌번호, string 종목코드, 주문유형 주문유형, float 수량, float 가격, 거래구분 거래구분
-        private async Task<주식주문정보> RequestOrder(string accountNo, string itemCode, int orderType, float quantity, float price, string orignOrderNo)
+        private async Task<주식주문정보> RequestOrder(string accountNo, string itemCode, int orderType, float price, float quantity, string orignOrderNo)
         {
             주식주문정보 result = default;
 
@@ -456,7 +462,21 @@ namespace AutoTrader.StockProvider.Kiwoom
                 if (nResult < 0)
                     throw GetException(nResult);
 
-                (result, _) = WaitForReqResult<주식주문정보>(reqName);
+                var (orderNo, _, message) = WaitForReqResult<string>(reqName);
+                result = new()
+                {
+                    거래구분 = price == 0f ? 거래구분.시장가 : 거래구분.지정가,
+                    계좌번호 = accountNo,
+                    원주문번호 = orignOrderNo,
+                    원주문 = null,
+                    종목코드 = itemCode,
+                    주문가격 = price,
+                    주문번호 = orderNo,
+                    주문수량 = quantity,
+                    주문유형 = orderType == 1 ? 주문유형.매수 : 주문유형.매도,
+
+                    주문메시지 = message
+                };
 
                 RemoveReqResult(reqName);
 
@@ -466,13 +486,12 @@ namespace AutoTrader.StockProvider.Kiwoom
             return result;
         }
 
-        private (TResult, bool) WaitForReqResult<TResult>(string reqName)
-            where TResult : class
+        private (TResult, bool, string) WaitForReqResult<TResult>(string reqName)
         {
             var result = new ReqResult();
             reqNameToResultMap[reqName] = result;
             result.ResponseResetEvent.Wait();
-            return (result.Value as TResult, result.IsContinuous);
+            return ((TResult)result.Value, result.IsContinuous, result.Message);
         }
 
         private ReqResult GetReqResult(string reqName)
@@ -493,6 +512,7 @@ namespace AutoTrader.StockProvider.Kiwoom
         {
             public object Value { get; set; }
             public bool IsContinuous { get; set; }
+            public string Message { get; set; }
             public ManualResetEventSlim ResponseResetEvent { get; } = new ManualResetEventSlim(false);
         }
 
@@ -541,7 +561,7 @@ namespace AutoTrader.StockProvider.Kiwoom
             );
         }
 
-        public Task<주식주문정보> 주식_주문(string 계좌번호, string 종목코드, 주문유형 주문유형, float 수량, float 가격, 거래구분 거래구분)
+        public Task<주식주문정보> 주식_주문(string 계좌번호, string 종목코드, 주문유형 주문유형, float 가격, float 수량, 거래구분 거래구분)
         {
             // 시장가 거래의 경우 가격은 0원이어야 한다.
             if (거래구분 == 거래구분.시장가)
@@ -554,18 +574,42 @@ namespace AutoTrader.StockProvider.Kiwoom
                     주문유형.매도 => 2,
                     _ => 1
                 },
-                수량, 가격,
+                가격, 수량,
                 ""/*원주문번호*/);
         }
 
-        public Task<주식주문정보> 주식_정정주문(주식주문정보 원주문, float 수량, float 가격)
+        /// <param name="원주문"></param>
+        /// <param name="수량"></param>
+        /// <param name="가격"></param>
+        /// <returns></returns>
+        public async Task<주식주문정보> 주식_주문정정(주식주문정보 원주문, float 가격, float 수량)
         {
-            return Task.FromResult(원주문);
+            var result = await RequestOrder(원주문.계좌번호, 원주문.종목코드,
+                원주문.주문유형 switch
+                {
+                    주문유형.매수 => 5,
+                    주문유형.매도 => 6,
+                    _ => 1
+                },
+                가격, 수량,
+                원주문.주문번호);
+
+            return result with { 원주문 = 원주문 };
         }
 
-        public Task<bool> 주식_주문취소(주식주문정보 원주문)
+        public async Task<bool> 주식_주문취소(주식주문정보 원주문)
         {
-            return Task.FromResult(false);
+            var result = await RequestOrder(원주문.계좌번호, 원주문.종목코드,
+                원주문.주문유형 switch
+                {
+                    주문유형.매수 => 3,
+                    주문유형.매도 => 4,
+                    _ => 1
+                },
+                원주문.주문수량, 원주문.주문가격,
+                원주문.주문번호);
+
+            return result.주문성공유무;
         }
     }
 }

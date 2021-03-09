@@ -28,8 +28,8 @@ namespace AutoTrader.Core.StockProvider
         // ### 실시간 기능
 
         // ### 매매 기능
-        Task<주식주문정보> 주식_주문(string 계좌번호, string 종목코드, 주문유형 주문유형, float 수량, float 가격, 거래구분 거래구분);
-        Task<주식주문정보> 주식_정정주문(주식주문정보 원주문, float 수량, float 가격);
+        Task<주식주문정보> 주식_주문(string 계좌번호, string 종목코드, 주문유형 주문유형, float 가격, float 수량, 거래구분 거래구분);
+        Task<주식주문정보> 주식_주문정정(주식주문정보 원주문, float 가격, float 수량);
         Task<bool> 주식_주문취소(주식주문정보 주문);
 
 

@@ -33,15 +33,19 @@ namespace AutoTrader.Test
             //{
             //    Console.WriteLine(item);
             //}
-            var result = await manager.주식_분봉_조회("000020", 분봉구분.분봉_1분봉);
-            Console.WriteLine(result.Count);
+            //var result = await manager.주식_분봉_조회("000020", 분봉구분.분봉_1분봉);
+            //Console.WriteLine(result.Count);
 
-            /*
+
             // 주문 확인
             Console.ReadLine();
             var 계좌번호 = userInfo.보유계좌목록.First();
-            await manager.주식_주문(계좌번호, "000020", 주문유형.매수, 1, 0, 거래구분.시장가);
-            */
+            var 주문1 = await manager.주식_주문(계좌번호, "000020", 주문유형.매수, 0, 10, 거래구분.시장가);
+            Console.WriteLine(주문1);
+            //var 정정주문 = await manager.주식_정정주문(주문1, 0, 5);
+            //Console.WriteLine(정정주문);
+            var 취소주문 = await manager.주식_주문취소(주문1);
+            Console.WriteLine(취소주문);
 
             Console.ReadLine();
         }
