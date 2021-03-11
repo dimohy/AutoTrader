@@ -14,24 +14,75 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using System.Runtime.CompilerServices;
+using System.Printing;
 
 namespace AutoTrader.StockProvider.Kiwoom
 {
     public class OpenApiForm : Form, IStockProvider
     {
         private static readonly TimeSpan RequestTimeInterval = TimeSpan.FromSeconds(0.2d);
+        private static readonly string ScreenNo = "101";
+        private static readonly int[] RealtimeFIds = new[]
+        {
+            20,   // 체결시각
+            21,   // 호가변경시각
+            41,   // 매도1호가
+            42,   // 매도2호가
+            43,   // 매도3호가
+            44,   // 매도4호가
+            45,   // 매도5호가
+            46,   // 매도6호가
+            47,   // 매도7호가
+            61,   // 매도1호가 잔량
+            62,   // 매도2호가 잔량
+            63,   // 매도3호가 잔량
+            64,   // 매도4호가 잔량
+            65,   // 매도5호가 잔량
+            66,   // 매도6호가 잔량
+            67,   // 매도7호가 잔량
+            51,   // 매수1호가
+            52,   // 매수2호가
+            53,   // 매수3호가
+            54,   // 매수4호가
+            55,   // 매수5호가
+            56,   // 매수6호가
+            57,   // 매수7호가
+            71,   // 매수1호가 잔량
+            72,   // 매수2호가 잔량
+            73,   // 매수3호가 잔량
+            74,   // 매수4호가 잔량
+            75,   // 매수5호가 잔량
+            76,   // 매수6호가 잔량
+            77,   // 매수7호가 잔량
+            10,   // 현재가(체결가, 실시간종가)
+            15,   // 거래량, 체결량
+            13,   // 누적거래량, 누적 체결량
+            16,   // 시가
+            17,   // 고가
+            18    // 저가
+        };
+        private static readonly string RealtimeFIdsString = string.Join(';', RealtimeFIds);
+
 
         private AxKHOpenAPI api;
         private readonly ManualResetEventSlim waitConnectResetEvent = new(false);
         private Exception lastException;
-        private 사용자정보 사용자정보;
+        private 사용자정보 userInfo;
         private ushort reqNum;
         private readonly ConcurrentDictionary<string, ReqResult> reqNameToResultMap = new();
         private Stopwatch stopwatch;
         private TimeSpan lastRequestTimeSpan;
         private TimeSpan lastOrderTimeSpan;
+        private Dictionary<string, 주식실시간시세> 주식실시간시세map = new();
+        private BlockingCollection<주식실시간시세> 주식실시간시세queue = new();
+        private Thread 주식실시간시세DequeueThread;
+
+        public Action<주식실시간시세> 주식_실시간시세_호출 { get; set; }
+
 
         public ManualResetEvent InitCompleteEvent { private get; set; }
+
 
         public async Task<사용자정보> 로그인(string id = default, string passwords = default, ExtraLoginParams loginParams = default)
         {
@@ -54,7 +105,7 @@ namespace AutoTrader.StockProvider.Kiwoom
                 stopwatch = Stopwatch.StartNew();
             });
 
-            return 사용자정보;
+            return userInfo;
         }
 
         //public async Task LogoutAsync()
@@ -85,6 +136,28 @@ namespace AutoTrader.StockProvider.Kiwoom
             api.OnReceiveTrData += Api_OnReceiveTrData;
             //api.OnReceiveTrCondition += Api_OnReceiveTrCondition;
             //api.OnReceiveConditionVer += Api_OnReceiveConditionVer;
+
+            // 실시간시세 큐에서 꺼내 콜벡에 전달하는 스레드
+            주식실시간시세DequeueThread = new Thread(() =>
+            {
+                while (true)
+                {
+                    var info = 주식실시간시세queue.Take();
+
+                    // 콜벡에서 오류나는 경우 무시. 예외는 콜벡에서 전처리 해야 함
+                    try
+                    {
+                        주식_실시간시세_호출?.Invoke(info);
+                    }
+                    catch
+                    {
+                    }
+                }
+            })
+            {
+                IsBackground = true
+            };
+            주식실시간시세DequeueThread.Start();
 
             Controls.Add(api);
 
@@ -223,9 +296,9 @@ namespace AutoTrader.StockProvider.Kiwoom
                 result.Value = items;
                 result.IsContinuous = e.sPrevNext == "2";
             }
-            /////////////////////////
+            //////////////////////////////
             // 주식 매수/매도/취소 주문 //
-            /////////////////////////
+            //////////////////////////////
             else if (e.sTrCode == "KOA_NORMAL_BUY_KP_ORD" || e.sTrCode == "KOA_NORMAL_SELL_KP_ORD" || e.sTrCode == "KOA_NORMAL_KP_CANCEL")
             {
                 var orderNo = Get<string>(0, "주문번호");
@@ -238,7 +311,7 @@ namespace AutoTrader.StockProvider.Kiwoom
             TResult Get<TResult>(int index, string itemName) => api.GetCommData(e.sTrCode, e.sRQName, index, itemName).CastTo<TResult>();
         }
 
-        private StockProviderException GetException(int errorCode)
+        private static StockProviderException GetException(int errorCode)
         {
             var kind = errorCode switch
             {
@@ -253,7 +326,78 @@ namespace AutoTrader.StockProvider.Kiwoom
 
         private void Api_OnReceiveRealData(object sender, _DKHOpenAPIEvents_OnReceiveRealDataEvent e)
         {
-            Console.WriteLine($"Api_OnReceiveRealData: ");
+            //Console.WriteLine($"Api_OnReceiveRealData: {e.sRealKey}, {e.sRealType}, {e.sRealData}");
+
+            var itemCode = e.sRealKey;
+
+            var bResult = 주식실시간시세map.TryGetValue(itemCode, out var item);
+            if (bResult == false)
+            {
+                item = new()
+                {
+                    종목코드 = itemCode
+                };
+            }
+
+            if (e.sRealType == "주식체결")
+            {
+                item = item with
+                {
+                    시각 = Get<DateTime>(20),
+                    체결가 = Get<float>(10).Abs(),
+                    체결방향 = Get<int>(15) > 0 ? 주식체결방향.상승 : 주식체결방향.하락,
+                    거래량 = Get<int>(15).Abs(),
+                    누적거래량 = Get<int>(13),
+                    시가 = Get<float>(16).Abs(),
+                    고가 = Get<float>(17).Abs(),
+                    저가 = Get<float>(18).Abs(),
+
+                    체결유무 = true
+                };
+            }
+            else if (e.sRealType == "주식호가잔량")
+            {
+                item = item with
+                {
+                    시각 = Get<DateTime>(21),
+                    매도1호가 = Get<float>(41).Abs(),
+                    매도2호가 = Get<float>(42).Abs(),
+                    매도3호가 = Get<float>(43).Abs(),
+                    매도4호가 = Get<float>(44).Abs(),
+                    매도5호가 = Get<float>(45).Abs(),
+                    매도6호가 = Get<float>(46).Abs(),
+                    매도7호가 = Get<float>(47).Abs(),
+                    매도1호가잔량 = Get<int>(61).Abs(),
+                    매도2호가잔량 = Get<int>(62).Abs(),
+                    매도3호가잔량 = Get<int>(63).Abs(),
+                    매도4호가잔량 = Get<int>(64).Abs(),
+                    매도5호가잔량 = Get<int>(65).Abs(),
+                    매도6호가잔량 = Get<int>(66).Abs(),
+                    매도7호가잔량 = Get<int>(67).Abs(),
+                    매수1호가 = Get<float>(51).Abs(),
+                    매수2호가 = Get<float>(52).Abs(),
+                    매수3호가 = Get<float>(53).Abs(),
+                    매수4호가 = Get<float>(54).Abs(),
+                    매수5호가 = Get<float>(55).Abs(),
+                    매수6호가 = Get<float>(56).Abs(),
+                    매수7호가 = Get<float>(57).Abs(),
+                    매수1호가잔량 = Get<int>(71).Abs(),
+                    매수2호가잔량 = Get<int>(72).Abs(),
+                    매수3호가잔량 = Get<int>(73).Abs(),
+                    매수4호가잔량 = Get<int>(74).Abs(),
+                    매수5호가잔량 = Get<int>(75).Abs(),
+                    매수6호가잔량 = Get<int>(76).Abs(),
+                    매수7호가잔량 = Get<int>(77).Abs(),
+
+                    체결유무 = false
+                };
+            }
+
+            주식실시간시세map[itemCode] = item;
+            주식실시간시세queue.Add(item);
+
+            //////
+            TResult Get<TResult>(int fid) => api.GetCommRealData(itemCode, fid).CastTo<TResult>();
         }
 
         private void Api_OnReceiveChejanData(object sender, _DKHOpenAPIEvents_OnReceiveChejanDataEvent e)
@@ -348,7 +492,7 @@ namespace AutoTrader.StockProvider.Kiwoom
                 temp = api.GetLoginInfo("GetServerGubun");
                 var 서버구분 = temp == "1" ? 접속서버구분.모의투자서버 : 접속서버구분.실거래서버;
 
-                사용자정보 = new(증권사구분.키움증권, 사용자ID, 사용자명, 보유계좌수, 보유계좌목록, 서버구분);
+                userInfo = new(증권사구분.키움증권, 사용자ID, 사용자명, 보유계좌수, 보유계좌목록, 서버구분);
             }
             finally
             {
@@ -376,7 +520,7 @@ namespace AutoTrader.StockProvider.Kiwoom
                     foreach (var kv in @params)
                         api.SetInputValue(kv.Key, kv.Value);
 
-                    nResult = api.CommRqData(reqName, trCode, 0, "101");
+                    nResult = api.CommRqData(reqName, trCode, 0, ScreenNo);
                 }));
                 if (nResult < 0)
                     throw GetException(nResult);
@@ -414,7 +558,7 @@ namespace AutoTrader.StockProvider.Kiwoom
                         foreach (var kv in @params)
                             api.SetInputValue(kv.Key, kv.Value);
 
-                        nResult = api.CommRqData(reqName, trCode, isContinuous == true ? 2 : 0, "101");
+                        nResult = api.CommRqData(reqName, trCode, isContinuous == true ? 2 : 0, ScreenNo);
                     }));
                     if (nResult < 0)
                         throw GetException(nResult);
@@ -457,7 +601,7 @@ namespace AutoTrader.StockProvider.Kiwoom
                     var nQuantity = (int)quantity;
                     var nPrice = (int)price;
                     // "03"은 시장가, "01"은 지정가. 주문가격이 0일 경우 시장가로 거래한다.
-                    nResult = api.SendOrder(reqName, "101", accountNo, orderType, itemCode, nQuantity, nPrice, nPrice == 0 ? "03" : "00", orignOrderNo);
+                    nResult = api.SendOrder(reqName, ScreenNo, accountNo, orderType, itemCode, nQuantity, nPrice, nPrice == 0 ? "03" : "00", orignOrderNo);
                 }));
                 if (nResult < 0)
                     throw GetException(nResult);
@@ -473,9 +617,10 @@ namespace AutoTrader.StockProvider.Kiwoom
                     주문가격 = price,
                     주문번호 = orderNo,
                     주문수량 = quantity,
-                    주문유형 = orderType == 1 ? 주문유형.매수 : 주문유형.매도,
+                    주문유형 = orderType switch { 1 or 3 or 5 => 주문유형.매수, 2 or 4 or 6 => 주문유형.매도, _ => 주문유형.매수 },
 
-                    주문메시지 = message
+                    취소유무 = orderType == 3 || orderType == 4,
+                    메시지 = message
                 };
 
                 RemoveReqResult(reqName);
@@ -488,6 +633,7 @@ namespace AutoTrader.StockProvider.Kiwoom
 
         private (TResult, bool, string) WaitForReqResult<TResult>(string reqName)
         {
+
             var result = new ReqResult();
             reqNameToResultMap[reqName] = result;
             result.ResponseResetEvent.Wait();
@@ -597,7 +743,7 @@ namespace AutoTrader.StockProvider.Kiwoom
             return result with { 원주문 = 원주문 };
         }
 
-        public async Task<bool> 주식_주문취소(주식주문정보 원주문)
+        public async Task<주식주문정보> 주식_주문취소(주식주문정보 원주문)
         {
             var result = await RequestOrder(원주문.계좌번호, 원주문.종목코드,
                 원주문.주문유형 switch
@@ -609,7 +755,44 @@ namespace AutoTrader.StockProvider.Kiwoom
                 원주문.주문수량, 원주문.주문가격,
                 원주문.주문번호);
 
-            return result.주문성공유무;
+            return result with { 원주문 = 원주문 };
+        }
+
+        public Task 주식_실시간시세_등록(params string[] 종목코드_목록)
+        {
+            return Task.Run(() =>
+            {
+                var codes = string.Join(';', 종목코드_목록);
+
+                api.Invoke(new Action(() =>
+                {
+                    api.SetRealReg(ScreenNo, codes, RealtimeFIdsString, "1");
+                }));
+            });
+        }
+
+        public Task 주식_실시간시세_해제(params string[] 종목코드_목록)
+        {
+            return Task.Run(() =>
+            {
+                var codes = string.Join(';', 종목코드_목록);
+
+                api.Invoke(new Action(() =>
+                {
+                    api.SetRealRemove(ScreenNo, codes);
+                }));
+            });
+        }
+
+        public Task 주식_실시간시세_전체해제()
+        {
+            return Task.Run(() =>
+            {
+                api.Invoke(new Action(() =>
+                {
+                    api.SetRealRemove(ScreenNo, "ALL");
+                }));
+            });
         }
     }
 }

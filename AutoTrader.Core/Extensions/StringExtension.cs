@@ -21,8 +21,13 @@ namespace AutoTrader.Core.Extensions
 
             if (type == typeof(DateTime))
             {
+                var now = DateTime.Now;
+
+                // 6자리 시분초
+                if (@this.Length == 6)
+                    return (TResult)(object)(new DateTime(now.Year, now.Month, now.Day, int.Parse(@this[..2]), int.Parse(@this[2..4]), int.Parse(@this[4..])));
                 // 8자리 연월일
-                if (@this.Length == 8)
+                else if (@this.Length == 8)
                     return (TResult)(object)(new DateTime(int.Parse(@this[..4]), int.Parse(@this[4..6]), int.Parse(@this[6..8])));
                 // 14자리 연월일시분초
                 else if (@this.Length == 14)

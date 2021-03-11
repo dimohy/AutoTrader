@@ -26,11 +26,16 @@ namespace AutoTrader.Core.StockProvider
         Task<IReadOnlyList<주식분봉정보>> 주식_분봉_조회(string 종목코드, 분봉구분 분봉구분);
 
         // ### 실시간 기능
+        Task 주식_실시간시세_등록(params string[] 종목코드_목록);
+        Task 주식_실시간시세_해제(params string[] 종목코드_목록);
+        Task 주식_실시간시세_전체해제();
+
+        Action<주식실시간시세> 주식_실시간시세_호출 { get; set; }
 
         // ### 매매 기능
         Task<주식주문정보> 주식_주문(string 계좌번호, string 종목코드, 주문유형 주문유형, float 가격, float 수량, 거래구분 거래구분);
         Task<주식주문정보> 주식_주문정정(주식주문정보 원주문, float 가격, float 수량);
-        Task<bool> 주식_주문취소(주식주문정보 주문);
+        Task<주식주문정보> 주식_주문취소(주식주문정보 주문);
 
 
         ////////////////////

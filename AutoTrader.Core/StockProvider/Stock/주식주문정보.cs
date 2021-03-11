@@ -19,10 +19,10 @@ namespace AutoTrader.Core.StockProvider.Stock
         public 주식주문정보 원주문 { get; init; }
         public DateTime 주문일시 { get; init; }
 
-        public string 주문메시지 { get; init; }
+        public string 메시지 { get; init; }
 
+        public bool 취소유무 { get; init; }
         public bool 정정주문유무 => string.IsNullOrWhiteSpace(원주문번호) == false;
-        public bool 주문성공유무 => string.IsNullOrWhiteSpace(주문번호) == false;
-        //public bool 주문성공유무 => 주문번호 != 0;
+        public bool 처리유무 => string.IsNullOrWhiteSpace(주문번호) == false;
     }
 }

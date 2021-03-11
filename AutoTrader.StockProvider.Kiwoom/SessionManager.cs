@@ -21,6 +21,8 @@ namespace AutoTrader.StockProvider.Kiwoom
         private readonly Thread messageThread;
         private IStockProvider openApi;
 
+        public Action<주식실시간시세> 주식_실시간시세_호출 { get => openApi.주식_실시간시세_호출; set => openApi.주식_실시간시세_호출 = value; }
+
         public SessionManager()
         {
             var initResetEvent = new ManualResetEvent(false);
@@ -79,9 +81,24 @@ namespace AutoTrader.StockProvider.Kiwoom
             return openApi.주식_주문정정(원주문, 가격, 수량);
         }
 
-        public Task<bool> 주식_주문취소(주식주문정보 주문)
+        public Task<주식주문정보> 주식_주문취소(주식주문정보 주문)
         {
             return openApi.주식_주문취소(주문);
+        }
+
+        public Task 주식_실시간시세_등록(params string[] 종목코드_목록)
+        {
+            return openApi.주식_실시간시세_등록(종목코드_목록);
+        }
+
+        public Task 주식_실시간시세_해제(params string[] 종목코드_목록)
+        {
+            return openApi.주식_실시간시세_해제(종목코드_목록);
+        }
+
+        public Task 주식_실시간시세_전체해제()
+        {
+            return openApi.주식_실시간시세_전체해제();
         }
     }
 }
