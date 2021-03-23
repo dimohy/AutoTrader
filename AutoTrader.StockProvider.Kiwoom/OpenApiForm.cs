@@ -318,7 +318,8 @@ namespace AutoTrader.StockProvider.Kiwoom
                     총매입금액 = Get<decimal>(0, "총매입금액"),
                     추정예탁자산 = Get<decimal>(0, "추정예탁자산"),
 
-                    보유종목_목록 = items
+                    보유종목_목록 = items,
+                    미보유주문_목록 = new List<주식주문정보>()
                 };
 
                 var count = api.GetDataCount(e.sRQName);
@@ -333,7 +334,7 @@ namespace AutoTrader.StockProvider.Kiwoom
                         현재가 = Get<float>(i, "현재가"),
                         매입금액 = Get<decimal>(i, "매입금액"),
 
-                        체결상세_목록 = new List<주식주문정보>()
+                        주문상세_목록 = new List<주식주문정보>()
                     });
                 }
 
@@ -880,11 +881,16 @@ namespace AutoTrader.StockProvider.Kiwoom
                 ("체결구분", "0")
             );
 
+            // 보유종목 상세 목록 등록
             foreach (var item in result1.보유종목_목록)
             {
                 var orderDetails = result2.Where(x => x.종목코드 == item.종목코드);
-                (item.체결상세_목록 as List<주식주문정보>).AddRange(orderDetails);
+                (item.주문상세_목록 as List<주식주문정보>).AddRange(orderDetails);
             }
+
+            // 미보유 미체결 등록
+            var notHeldOrderDetails = result2.Where(x => result1.보유종목_목록.Select(x => x.종목코드).Contains(x.종목코드) == false && x.주문상태 == 주문상태.접수);
+            (result1.미보유주문_목록 as List<주식주문정보>).AddRange(notHeldOrderDetails);
 
             return result1 with { 계좌번호 = 계좌번호 };
         }

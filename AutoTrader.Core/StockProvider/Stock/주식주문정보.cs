@@ -24,7 +24,6 @@ namespace AutoTrader.Core.StockProvider.Stock
         public float 체결가 { get; init; }
         public int 체결수량 { get; init; }
         public int 미체결수량 { get; init; }
-        public bool 체결완료유무 => 미체결수량 == 0;
         public decimal 매매수수료 { get; init; }
         public decimal 매매세금 { get; init; }
 

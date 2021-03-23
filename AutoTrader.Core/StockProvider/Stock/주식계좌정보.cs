@@ -19,6 +19,7 @@ namespace AutoTrader.Core.StockProvider.Stock
         public decimal 추정예탁자산 { get; init; }
 
         public IReadOnlyList<주식보유종목정보> 보유종목_목록 { get; init; }
+        public IReadOnlyList<주식주문정보> 미보유주문_목록 { get; init; }
     }
 
     public record 주식보유종목정보
@@ -34,6 +35,6 @@ namespace AutoTrader.Core.StockProvider.Stock
         public float 손익율 => Calc.PerRate(현재가, 평균단가);
         public decimal 매입금액 { get; init; }
 
-        public IReadOnlyList<주식주문정보> 체결상세_목록 { get; init; }
+        public IReadOnlyList<주식주문정보> 주문상세_목록 { get; init; }
     }
 }

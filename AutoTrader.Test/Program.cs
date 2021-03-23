@@ -68,8 +68,11 @@ namespace AutoTrader.Test
             //await manager.주식_주문("8159796211", "000020", 주문유형.매도, 0, 230, 거래구분.시장가);
 
             //await manager.주식_주문(계좌번호, "000270", 주문유형.매수, 0, 20, 거래구분.시장가);
-           
+
             //await manager.주식_주문(계좌번호, "000270", 주문유형.매수, 82000, 10, 거래구분.지정가);
+
+            //var result2 = await manager.주식_주문(계좌번호, "005380", 주문유형.매수, 220000, 10, 거래구분.지정가);
+            //Console.WriteLine(result2);
 
 
 
