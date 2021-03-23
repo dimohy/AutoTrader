@@ -71,12 +71,12 @@ namespace AutoTrader.StockProvider.Kiwoom
             return openApi.주식_분봉_조회(종목코드, 분봉구분);
         }
 
-        public Task<주식주문정보> 주식_주문(string 계좌번호, string 종목코드, 주문유형 주문유형, float 가격, float 수량, 거래구분 거래구분)
+        public Task<주식주문정보> 주식_주문(string 계좌번호, string 종목코드, 주문유형 주문유형, float 가격, int 수량, 거래구분 거래구분)
         {
             return openApi.주식_주문(계좌번호, 종목코드, 주문유형, 가격, 수량, 거래구분);
         }
 
-        public Task<주식주문정보> 주식_주문정정(주식주문정보 원주문, float 가격, float 수량)
+        public Task<주식주문정보> 주식_주문정정(주식주문정보 원주문, float 가격, int 수량)
         {
             return openApi.주식_주문정정(원주문, 가격, 수량);
         }
@@ -99,6 +99,11 @@ namespace AutoTrader.StockProvider.Kiwoom
         public Task 주식_실시간시세_전체해제()
         {
             return openApi.주식_실시간시세_전체해제();
+        }
+
+        public Task<주식계좌정보> 주식_계좌정보_조회(string 계좌번호)
+        {
+            return openApi.주식_계좌정보_조회(계좌번호);
         }
     }
 }

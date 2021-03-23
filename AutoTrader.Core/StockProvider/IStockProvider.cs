@@ -19,6 +19,8 @@ namespace AutoTrader.Core.StockProvider
         // 주식 관련 //
         ///////////////
 
+        Task<주식계좌정보> 주식_계좌정보_조회(string 계좌번호);
+
         // ### 조회 기능
         Task<주식기본정보> 주식_기본정보_조회(string 종목코드);
         Task<IReadOnlyList<주식일봉정보>> 주식_일봉정보_조회(string 종목코드, DateTime 기준일자);
@@ -33,8 +35,8 @@ namespace AutoTrader.Core.StockProvider
         Action<주식실시간시세> 주식_실시간시세_호출 { get; set; }
 
         // ### 매매 기능
-        Task<주식주문정보> 주식_주문(string 계좌번호, string 종목코드, 주문유형 주문유형, float 가격, float 수량, 거래구분 거래구분);
-        Task<주식주문정보> 주식_주문정정(주식주문정보 원주문, float 가격, float 수량);
+        Task<주식주문정보> 주식_주문(string 계좌번호, string 종목코드, 주문유형 주문유형, float 가격, int 수량, 거래구분 거래구분);
+        Task<주식주문정보> 주식_주문정정(주식주문정보 원주문, float 가격, int 수량);
         Task<주식주문정보> 주식_주문취소(주식주문정보 주문);
 
 
@@ -94,6 +96,13 @@ namespace AutoTrader.Core.StockProvider
     {
         지정가,
         시장가
+    }
+
+    public enum 주문상태
+    {
+        접수,
+        확인,
+        체결
     }
 }
 

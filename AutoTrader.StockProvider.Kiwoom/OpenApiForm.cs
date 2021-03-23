@@ -94,7 +94,7 @@ namespace AutoTrader.StockProvider.Kiwoom
                 if (result < 0)
                     throw new StockProviderLoginException(StockProviderExceptionKind.로그인오류_통신장애);
                 // 30초 동안 입력되지 않으면 로그인 실패
-                var bResult = waitConnectResetEvent.Wait(30 * 1000);
+                var bResult = waitConnectResetEvent.Wait(60 * 1000);
                 if (bResult == false)
                     throw new StockProviderLoginException(StockProviderExceptionKind.로그인오류_타임아웃);
 
@@ -193,7 +193,7 @@ namespace AutoTrader.StockProvider.Kiwoom
             {
                 result.Value = new 주식기본정보
                 {
-                    종목코드 = Get<string>(0, "종목코드"),
+                    종목코드 = Get종목코드(Get<string>(0, "종목코드")),
                     종목명 = Get<string>(0, "종목명"),
                     결산월 = Get<int>(0, "결산월"),
                     액면가 = Get<float>(0, "액면가"),
@@ -250,7 +250,7 @@ namespace AutoTrader.StockProvider.Kiwoom
                 for (var i = 0; i < count; i++)
                 {
                     if (i == 0)
-                        종목코드 = Get<string>(0, "종목코드");
+                        종목코드 = Get종목코드(Get<string>(0, "종목코드"));
 
                     var item = new 주식일봉정보
                     {
@@ -279,7 +279,7 @@ namespace AutoTrader.StockProvider.Kiwoom
                 for (var i = 0; i < count; i++)
                 {
                     if (i == 0)
-                        종목코드 = Get<string>(0, "종목코드");
+                        종목코드 = Get종목코드(Get<string>(0, "종목코드"));
 
                     var item = new 주식분봉정보
                     {
@@ -304,11 +304,79 @@ namespace AutoTrader.StockProvider.Kiwoom
                 var orderNo = Get<string>(0, "주문번호");
                 result.Value = orderNo;
             }
+            //////////////////////
+            // 계좌평가현황요청 //
+            //////////////////////
+            else if (e.sTrCode == "OPW00004")
+            {
+                var items = new List<주식보유종목정보>();
+                var info = new 주식계좌정보
+                {
+                    예수금 = Get<decimal>(0, "예수금"),
+                    유가잔고평가액 = Get<decimal>(0, "유가잔고평가액"),
+                    예탁자산평가액 = Get<decimal>(0, "예탁자산평가액"),
+                    총매입금액 = Get<decimal>(0, "총매입금액"),
+                    추정예탁자산 = Get<decimal>(0, "추정예탁자산"),
+
+                    보유종목_목록 = items
+                };
+
+                var count = api.GetDataCount(e.sRQName);
+                for (var i = 0; i < count; i++)
+                {
+                    items.Add(new()
+                    {
+                        종목코드 = Get종목코드(Get<string>(i, "종목코드")),
+                        종목명 = Get<string>(i, "종목명"),
+                        보유수량 = Get<int>(i, "보유수량"),
+                        평균단가 = Get<float>(i, "평균단가"),
+                        현재가 = Get<float>(i, "현재가"),
+                        매입금액 = Get<decimal>(i, "매입금액"),
+
+                        체결상세_목록 = new List<주식주문정보>()
+                    });
+                }
+
+                result.Value = info;
+            }
+            ////////////////
+            // 미체결요청 //
+            ////////////////
+            else if(e.sTrCode == "opt10075")
+            {
+                var list = new List<주식주문정보>();
+                var count = api.GetDataCount(e.sRQName);
+                for (var i = 0; i < count; i++)
+                {
+                    list.Add(new()
+                    {
+                        계좌번호 = Get<string>(i, "계좌번호"),
+                        종목코드 = Get종목코드(Get<string>(i, "종목코드")),
+                        종목명 = Get<string>(i, "종목명"),
+                        주문번호 = Get<string>(i, "주문번호"),
+                        주문상태 = Get<string>(i, "주문상태") switch { "접수" => 주문상태.접수, "확인" => 주문상태.확인, "체결" => 주문상태.체결, _ => 주문상태.접수 },
+                        주문수량 = Get<int>(i, "주문수량"),
+                        주문가격 = Get<float>(i, "주문가격"),
+                        미체결수량 = Get<int>(i, "미체결수량"),
+                        원주문번호 = Get<string>(i, "원주문번호") == "0000000" ? null : Get<string>(i, "원주문번호"),
+                        주문유형 = Get<string>(i, "주문구분") switch { "+매수" => 주문유형.매수, "-매도" => 주문유형.매도, _ => 주문유형.매도 },
+                        거래구분 = Get<string>(i, "매매구분") switch { "시장가" => 거래구분.시장가, _ => 거래구분.지정가 },
+                        주문일시 = Get<DateTime>(i, "시간"), // 주문일시인지, 체결일시인지 확인 필요
+                        체결가 = Get<float>(i, "체결가"),
+                        체결수량 = Get<int>(i, "체결량"),
+                        매매수수료 = Get<decimal>(i, "당일매매수수료"),
+                        매매세금 = Get<decimal>(i, "당일매매세금")
+                    });
+                }
+
+                result.Value = list;
+            }
 
             result.ResponseResetEvent.Set();
             
             ////
             TResult Get<TResult>(int index, string itemName) => api.GetCommData(e.sTrCode, e.sRQName, index, itemName).CastTo<TResult>();
+            string Get종목코드(string itemCode) => itemCode.StartsWith("A") == true ? itemCode[1..] : itemCode;
         }
 
         private static StockProviderException GetException(int errorCode)
@@ -402,18 +470,18 @@ namespace AutoTrader.StockProvider.Kiwoom
 
         private void Api_OnReceiveChejanData(object sender, _DKHOpenAPIEvents_OnReceiveChejanDataEvent e)
         {
-            //Console.WriteLine($"Api_OnReceiveChejanData: {e.sGubun}, {e.nItemCnt}, {e.sFIdList}");
+            Console.WriteLine($"Api_OnReceiveChejanData: {e.sGubun}, {e.nItemCnt}, {e.sFIdList}");
 
-            //if (e.nItemCnt == 0)
-            //    return;
+            if (e.nItemCnt == 0)
+                return;
 
-            //var fids = e.sFIdList.Split(';');
-            //foreach (var sFid in fids)
-            //{
-            //    var fid = int.Parse(sFid);
-            //    var fidResult = api.GetChejanData(fid);
-            //    Console.WriteLine($"{fid}: {fidResult}");
-            //}
+            var fids = e.sFIdList.Split(';');
+            foreach (var sFid in fids)
+            {
+                var fid = int.Parse(sFid);
+                var fidResult = api.GetChejanData(fid);
+                Console.WriteLine($"{fid}: {fidResult}");
+            }
         }
 
         //private void Api_OnReceiveInvestRealData(object sender, _DKHOpenAPIEvents_OnReceiveInvestRealDataEvent e)
@@ -582,7 +650,7 @@ namespace AutoTrader.StockProvider.Kiwoom
         }
 
         // string 계좌번호, string 종목코드, 주문유형 주문유형, float 수량, float 가격, 거래구분 거래구분
-        private async Task<주식주문정보> RequestOrder(string accountNo, string itemCode, int orderType, float price, float quantity, string orignOrderNo)
+        private async Task<주식주문정보> RequestOrder(string accountNo, string itemCode, int orderType, float price, int quantity, string orignOrderNo)
         {
             주식주문정보 result = default;
 
@@ -598,10 +666,9 @@ namespace AutoTrader.StockProvider.Kiwoom
                 var reqName = GenerateReqName();
                 api.Invoke(new Action(() =>
                 {
-                    var nQuantity = (int)quantity;
                     var nPrice = (int)price;
                     // "03"은 시장가, "01"은 지정가. 주문가격이 0일 경우 시장가로 거래한다.
-                    nResult = api.SendOrder(reqName, ScreenNo, accountNo, orderType, itemCode, nQuantity, nPrice, nPrice == 0 ? "03" : "00", orignOrderNo);
+                    nResult = api.SendOrder(reqName, ScreenNo, accountNo, orderType, itemCode, quantity, nPrice, nPrice == 0 ? "03" : "00", orignOrderNo);
                 }));
                 if (nResult < 0)
                     throw GetException(nResult);
@@ -707,7 +774,7 @@ namespace AutoTrader.StockProvider.Kiwoom
             );
         }
 
-        public Task<주식주문정보> 주식_주문(string 계좌번호, string 종목코드, 주문유형 주문유형, float 가격, float 수량, 거래구분 거래구분)
+        public Task<주식주문정보> 주식_주문(string 계좌번호, string 종목코드, 주문유형 주문유형, float 가격, int 수량, 거래구분 거래구분)
         {
             // 시장가 거래의 경우 가격은 0원이어야 한다.
             if (거래구분 == 거래구분.시장가)
@@ -728,7 +795,7 @@ namespace AutoTrader.StockProvider.Kiwoom
         /// <param name="수량"></param>
         /// <param name="가격"></param>
         /// <returns></returns>
-        public async Task<주식주문정보> 주식_주문정정(주식주문정보 원주문, float 가격, float 수량)
+        public async Task<주식주문정보> 주식_주문정정(주식주문정보 원주문, float 가격, int 수량)
         {
             var result = await RequestOrder(원주문.계좌번호, 원주문.종목코드,
                 원주문.주문유형 switch
@@ -752,7 +819,7 @@ namespace AutoTrader.StockProvider.Kiwoom
                     주문유형.매도 => 4,
                     _ => 1
                 },
-                원주문.주문수량, 원주문.주문가격,
+                원주문.주문가격, 원주문.주문수량,
                 원주문.주문번호);
 
             return result with { 원주문 = 원주문 };
@@ -793,6 +860,33 @@ namespace AutoTrader.StockProvider.Kiwoom
                     api.SetRealRemove(ScreenNo, "ALL");
                 }));
             });
+        }
+
+        public async Task<주식계좌정보> 주식_계좌정보_조회(string 계좌번호)
+        {
+            // 계좌평가현황요청
+            var result1 = await RequestData<주식계좌정보>("OPW00004",
+                ("계좌번호", 계좌번호),
+                ("비밀번호", ""),
+                ("상장폐지조회구분", "0"),
+                ("비밀번호입력매체구분", "00")
+            );
+
+            // 미체결요청
+            var result2 = await RequestData<IReadOnlyList<주식주문정보>>("opt10075",
+                ("계좌번호", 계좌번호),
+                ("전체종목구분", "0"),
+                ("매매구분", "0"),
+                ("체결구분", "0")
+            );
+
+            foreach (var item in result1.보유종목_목록)
+            {
+                var orderDetails = result2.Where(x => x.종목코드 == item.종목코드);
+                (item.체결상세_목록 as List<주식주문정보>).AddRange(orderDetails);
+            }
+
+            return result1 with { 계좌번호 = 계좌번호 };
         }
     }
 }
